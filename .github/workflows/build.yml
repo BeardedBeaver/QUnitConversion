@@ -1,84 +1,96 @@
 name: Build with CMake
 
 on:
-  - pull_request
-  - workflow_dispatch
+  pull_request:
+  workflow_dispatch:
 
 env:
-  BUILD_TYPE: Release
-  CMAKE_VERSION: 3.21
-  NINJA_VERSION: 1.11.1
+  CMAKE_VERSION: 3.30.0
+  NINJA_VERSION: 1.13.2
 
 jobs:
   build:
-    name: "${{ matrix.config.name }} Qt ${{ matrix.qt-version }}"
-    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        qt-version: [6.3]
-        config:
-        - {
-            name: "Ubuntu Latest GCC",
-            os: ubuntu-latest,
-            arch: gcc_64,
-            cc: "gcc", cxx: "g++"
-          }
-        - {
-            name: "Windows Latest MSVC",
-            os: windows-latest,
-            arch: win64_msvc2019_64,
-            is_msvc: true,
-            cc: "cl", cxx: "cl"
-          }
-        - {
-            name: "Windows Latest MinGW",
-            os: windows-latest,
-            arch: win64_mingw,
-            is_msvc: false,
-            cc: "gcc", cxx: "g++",
-          }
-        - {
-            name: "macOS Latest Clang",
-            os: macos-latest,
-            arch: clang_64,
-            cc: "clang", cxx: "clang++"
-          }
+        include:
+          # Qt 5.15.2
+          - name: "Ubuntu GCC Qt 5.15.2"
+            os: ubuntu-latest
+            qt-version: "5.15.2"
+            qt-arch: gcc_64
+            is_msvc: false
+
+          - name: "macOS Clang Qt 5.15.2"
+            os: macos-13
+            qt-version: "5.15.2"
+            qt-arch: clang_64
+            is_msvc: false
+
+          - name: "Windows MSVC Qt 5.15.2"
+            os: windows-latest
+            qt-version: "5.15.2"
+            qt-arch: win64_msvc2019_64
+            is_msvc: true
+
+          - name: "Windows MinGW Qt 5.15.2"
+            os: windows-latest
+            qt-version: "5.15.2"
+            qt-arch: win64_mingw81
+            is_msvc: false
+
+          # Qt 6.9.3
+          - name: "Ubuntu GCC Qt 6.9.3"
+            os: ubuntu-latest
+            qt-version: "6.9.3"
+            qt-arch: linux_gcc_64
+            is_msvc: false
+
+          - name: "macOS Clang Qt 6.9.3"
+            os: macos-latest
+            qt-version: "6.9.3"
+            qt-arch: clang_64
+            is_msvc: false
+
+          - name: "Windows MSVC Qt 6.9.3"
+            os: windows-latest
+            qt-version: "6.9.3"
+            qt-arch: win64_msvc2022_64
+            is_msvc: true
+
+          - name: "Windows MinGW Qt 6.9.3"
+            os: windows-latest
+            qt-version: "6.9.3"
+            qt-arch: win64_mingw
+            is_msvc: false
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Qt environment
-      uses: jurplel/install-qt-action@v3
-      with:
-        cache: true
-        version: ${{ matrix.qt-version }}
-        arch: ${{ matrix.config.arch }}
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ env.CMAKE_VERSION }}
+          ninjaVersion: ${{ env.NINJA_VERSION }}
 
-    - name: Setup MSBuild
-      uses: ilammy/msvc-dev-cmd@v1
-      if: runner.os == 'Windows' && matrix.config.is_msvc == true
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          cache: true
+          version: ${{ matrix.qt-version }}
+          arch: ${{ matrix.qt-arch }}
 
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@v1.9
-      with:
-        cmake-version: ${{env.CMAKE_VERSION}}
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.is_msvc == true
 
-    - name: Setup Ninja
-      uses: ashutoshvarma/setup-ninja@v1.1
-      with:
-        version: ${{env.NINJA_VERSION}}
+      - uses: ashutoshvarma/action-cmake-build@master
+        with:
+          build-dir: ${{ github.workspace }}/build
+          build-type: Release
+          configure-options: >-
+            -G Ninja
+            -DQUNITCONV_QT_TESTS=ON
 
-    - name: Build with CMake
-      uses: ashutoshvarma/action-cmake-build@master
-      with:
-        build-dir: ${{ runner.workspace }}/build
-        cc: ${{ matrix.config.cc }}
-        cxx: ${{ matrix.config.cxx }}
-        configure-options: -G Ninja
-        build-type: Release
-
-    - name: Run tests
-      run: |
-        cd ../build/tests
-        ./QUnitConversionTests
+      - run: ctest --test-dir ${{ github.workspace }}/build --output-on-failure --verbose
