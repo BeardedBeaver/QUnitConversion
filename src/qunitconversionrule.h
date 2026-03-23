@@ -1,6 +1,8 @@
 #ifndef QUNITCONVERSIONRULE_H
 #define QUNITCONVERSIONRULE_H
 
+#include <utility>
+
 #include "qlinearfunction.h"
 
 /**
@@ -13,27 +15,27 @@ template<class String>
 class QUnitConversionRule
 {
 public:
-    QUnitConversionRule(const String& family,
-                        const String& baseUnit,
-                        const String& unit,
-                        const QLinearFunction & convertFunction)
+
+    QUnitConversionRule(String family,
+                        String baseUnit,
+                        String unit,
+                        QLinearFunction convertFunction)
+        : m_family(std::move(family)),
+          m_baseUnit(std::move(baseUnit)),
+          m_unit(std::move(unit)),
+          m_convertFunction(std::move(convertFunction))
     {
-        m_family = family;
-        m_baseUnit = baseUnit;
-        m_unit = unit;
-        m_convertFunction = convertFunction;
     }
 
-    QUnitConversionRule(const String & family,
-                        const String & baseUnit,
-                        const String & unit,
+    QUnitConversionRule(String family,
+                        String baseUnit,
+                        String unit,
                         double k, double b)
+        : m_family(std::move(family)),
+          m_baseUnit(std::move(baseUnit)),
+          m_unit(std::move(unit)),
+          m_convertFunction(k, b)
     {
-        m_family = family;
-        m_baseUnit = baseUnit;
-        m_unit = unit;
-        m_convertFunction.setK(k);
-        m_convertFunction.setB(b);
     }
 
     String family() const 
