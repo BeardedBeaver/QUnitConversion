@@ -1,8 +1,6 @@
 #ifndef QLINEARFUNCTION_H
 #define QLINEARFUNCTION_H
 
-#include <QtGlobal>
-
 /**
  * @brief The QLinearFunction class describes a linear function
  * with a format of Y = k*X + b
@@ -31,11 +29,11 @@ public:
 
     /**
      * @brief Reverses current linear function so X = k*Y + b
-     * @return an object of type QLinearFunction containing inversed function
+     * @return an object of type QLinearFunction containing inverted function
      * @details This function doesn't perform validity check so applying it to
      * invalid function will cause division by zero
      */
-    QLinearFunction inversed() const;
+    QLinearFunction inverted() const;
 
     /**
      * @brief Function value

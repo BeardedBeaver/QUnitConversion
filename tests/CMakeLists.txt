@@ -4,35 +4,42 @@ include_guard(GLOBAL)
 
 project(QUnitConversionTests LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 
-set(CMAKE_AUTOMOC On)
-set(CMAKE_AUTORCC On)
+include(FetchContent)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Test REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Test REQUIRED)
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        v1.17.0
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+option(QUNITCONV_QT_TESTS "Include Qt string types in typed tests" OFF)
 
 set(SOURCES
-        main.cpp
-        qaliasdictionarytests.cpp
-        qlinearfunctiontests.cpp
-        qunitconvertortests.cpp
-        )
-
-set(HEADERS
-        qaliasdictionarytests.h
-        qlinearfunctiontests.h
-        qunitconvertortests.h
-        )
+    qaliasdictionary_tests.cpp
+    qlinearfunction_tests.cpp
+    qunitconvertor_tests.cpp
+)
 
 add_executable(QUnitConversionTests
-        ${SOURCES}
-        ${HEADERS}
-        )
+    ${SOURCES}
+)
 
 target_link_libraries(QUnitConversionTests
-        Qt::Core
-        Qt::Test
-        QUnitConversion
-        )
+    GTest::gtest_main
+    QUnitConversion
+)
+
+if(QUNITCONV_QT_TESTS)
+    find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
+    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
+    target_link_libraries(QUnitConversionTests Qt::Core)
+    target_compile_definitions(QUnitConversionTests PRIVATE QUNITCONV_QT_TESTS)
+endif()
+
+include(GoogleTest)
+gtest_discover_tests(QUnitConversionTests)
