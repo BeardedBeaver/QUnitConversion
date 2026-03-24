@@ -21,50 +21,27 @@ jobs:
             os: ubuntu-latest
             qt-version: "5.15.2"
             qt-arch: gcc_64
-            is_msvc: false
-
-          - name: "macOS Clang Qt 5.15.2"
-            os: macos-14
-            qt-version: "5.15.2"
-            qt-arch: clang_64
-            is_msvc: false
 
           - name: "Windows MSVC Qt 5.15.2"
             os: windows-latest
             qt-version: "5.15.2"
             qt-arch: win64_msvc2019_64
-            is_msvc: true
-
-          - name: "Windows MinGW Qt 5.15.2"
-            os: windows-latest
-            qt-version: "5.15.2"
-            qt-arch: win64_mingw81
-            is_msvc: false
 
           # Qt 6.9.3
           - name: "Ubuntu GCC Qt 6.9.3"
             os: ubuntu-latest
             qt-version: "6.9.3"
             qt-arch: linux_gcc_64
-            is_msvc: false
 
           - name: "macOS Clang Qt 6.9.3"
             os: macos-latest
             qt-version: "6.9.3"
             qt-arch: clang_64
-            is_msvc: false
 
           - name: "Windows MSVC Qt 6.9.3"
             os: windows-latest
             qt-version: "6.9.3"
             qt-arch: win64_msvc2022_64
-            is_msvc: true
-
-          - name: "Windows MinGW Qt 6.9.3"
-            os: windows-latest
-            qt-version: "6.9.3"
-            qt-arch: win64_mingw
-            is_msvc: false
 
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +60,7 @@ jobs:
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.is_msvc == true
+        if: contains(matrix.name, 'MSVC')
 
       - uses: ashutoshvarma/action-cmake-build@master
         with:
