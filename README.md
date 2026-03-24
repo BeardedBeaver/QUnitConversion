@@ -53,11 +53,4 @@ will be converted to m/s properly.
 
 `QUnitConversion` is distributed under MIT license
 
-## Repo contents
-
-| Directory           | Contents                       |
-|---------------------|--------------------------------|
-| `./QUnitConversion` | Library source code.           |
-| `./tests`           | Unittests code.                |
-
-Copyright Dmitriy Linev 2020-2024
+Copyright Dmitriy Linev 2020-2026

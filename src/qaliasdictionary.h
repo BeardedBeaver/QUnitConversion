@@ -1,8 +1,10 @@
 #ifndef QALIASDICTIONARY_H
 #define QALIASDICTIONARY_H
 
-#include <QMap>
-#include <QDebug>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <vector>
 
 /**
  * @brief The QAliasDictionary class provides
@@ -23,25 +25,34 @@ public:
     {
         if (m_names.contains(alias))
             return alias;
-        return m_aliases.value(alias);
+        auto it = m_aliases.find(alias);
+        if (it != m_aliases.end())
+            return it->second;
+        return {};
     }
     /**
      * @brief Gets a list of aliases for a given name
      * @param name name to get aliases
-     * @return QList<QString> containing aliases for a given name
+     * @return Vector of strings containing aliases for a given name
      */
-    QList<String> aliases(const String &name) const
+    std::vector<String> aliases(const String &name) const
     {
-        return m_aliases.keys(name);
+        std::vector<String> result;
+        for (const auto &pair : m_aliases)
+            if (pair.second == name)
+                result.push_back(pair.first);
+        return result;
     }
+
     /**
      * @brief Checks if this dictionary is empty
      * @return true if empty, false otherwise
      */
     bool isEmpty() const
     {
-        return m_aliases.isEmpty();
+        return m_aliases.empty();
     }
+
     /**
      * @brief Adds an alias to the dictionary
      * @param name name which will be returned if an alias requested
@@ -49,9 +60,10 @@ public:
      */
     void addAlias(String name, String alias)
     {
-        m_aliases.insert(std::move(alias), name);
+        m_aliases.insert_or_assign(std::move(alias), name);
         m_names.insert(std::move(name));
     }
+
     /**
      * @brief Checks if a dictionary contains name for the given alias
      * @param alias alias to check existence
@@ -72,9 +84,10 @@ public:
         m_aliases.clear();
         m_names.clear();
     }
+
 protected:
-    QMap<String, String> m_aliases;
-    QSet<String> m_names;
+    std::map<String, String> m_aliases;
+    std::set<String> m_names;
 };
 
 #endif // QALIASDICTIONARY_H

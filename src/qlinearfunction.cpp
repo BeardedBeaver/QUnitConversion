@@ -1,15 +1,15 @@
 #include "qlinearfunction.h"
 
 QLinearFunction::QLinearFunction()
-    : m_k(0), m_b(0)
+    : m_k(0)
+    , m_b(0)
 {
-
 }
 
 QLinearFunction::QLinearFunction(double k, double b)
-    : m_k(k), m_b(b)
+    : m_k(k)
+    , m_b(b)
 {
-
 }
 
 bool QLinearFunction::isValid() const
@@ -17,9 +17,9 @@ bool QLinearFunction::isValid() const
     return m_k != 0;
 }
 
-QLinearFunction QLinearFunction::inversed() const
+QLinearFunction QLinearFunction::inverted() const
 {
-    if (!isValid())
+    if (!isValid()) 
         return {};
     return {1. / m_k, -m_b / m_k};
 }

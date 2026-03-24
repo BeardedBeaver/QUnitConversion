@@ -1,9 +1,8 @@
 #ifndef QUNITCONVERSIONFAMILY_H
 #define QUNITCONVERSIONFAMILY_H
 
-#include <QMap>
-
 #include <cmath>
+#include <map>
 #include <stdexcept>
 
 #include "qunitconversionrule.h"
@@ -12,25 +11,25 @@
  * @brief The QUnitConversionFamily class is an internal class that provides
  * a conversion by holding all of the conversion rules for a single family
  */
-template<typename String>
+template<class String>
 class QUnitConversionFamily
 {
 public:
     QUnitConversionFamily() = default;
-    QUnitConversionFamily(String familyName, String baseUnit)
-        : m_family(std::move(familyName)),
-        m_baseUnit(std::move(baseUnit))
+
+    QUnitConversionFamily(const String & familyName, const String & baseUnit)
     {
+        m_family = familyName;
+        m_baseUnit = baseUnit;
     }
 
     /**
      * @brief Adds a conversion rule to convertor
      * @param rule rule to add
-     * @details
      */
-    void addConversionRule(QUnitConversionRule<String> rule)
+    void addConversionRule(const QUnitConversionRule<String> & rule)
     {
-        if (m_rules.isEmpty())
+        if (m_rules.empty())
         {
             m_family = rule.family();
             m_baseUnit = rule.baseUnit();
@@ -40,8 +39,7 @@ public:
             if (m_family != rule.family() || m_baseUnit != rule.baseUnit())
                 throw std::invalid_argument("Incorrect rule added to family");      // Don Corleone will be unhappy
         }
-        auto unit = rule.unit();
-        m_rules.insert(std::move(unit), std::move(rule));
+        m_rules.insert_or_assign(rule.unit(), rule);
     }
 
     /**
@@ -52,17 +50,22 @@ public:
      */
     QLinearFunction convert(const String & in, const String & out) const
     {
-        if (m_rules.isEmpty())
+        if (m_rules.empty())
             return {};
 
-        if (in == m_baseUnit && m_rules.contains(out))  // conversion from base unit to unit
-            return m_rules[out].convertFunction();
-        if (m_rules.contains(in) && out == m_baseUnit)  // converson from unit to base unit
-            return m_rules[in].convertFunction().inversed();
+        auto itIn  = m_rules.find(in);
+        auto itOut = m_rules.find(out);
+
+        if (in == m_baseUnit && itOut != m_rules.end())     // conversion from base unit to unit
+            return itOut->second.convertFunction();
+        if (itIn != m_rules.end() && out == m_baseUnit)    // conversion from unit to base unit
+            return itIn->second.convertFunction().inverted();
 
         // conversion from one unit to another through the base unit if possible
-        QLinearFunction inToBase = m_rules[in].convertFunction().inversed();
-        QLinearFunction baseToOut = m_rules[out].convertFunction();
+        if (itIn == m_rules.end() || itOut == m_rules.end())
+            return {};
+        QLinearFunction inToBase  = itIn->second.convertFunction().inverted();
+        QLinearFunction baseToOut = itOut->second.convertFunction();
         if (!inToBase.isValid() || !baseToOut.isValid())    // one of the conversions is not present
             return {};
         return QLinearFunction::combined(inToBase, baseToOut);
@@ -84,9 +87,9 @@ public:
     }
 
 protected:
-    QMap<String, QUnitConversionRule<String>> m_rules;    ///< Key is a unit, it's assumed that all rules have the same base unit
-    String m_baseUnit;     ///< Base unit for this family
-    String m_family;       ///< Family name
+    std::map<String, QUnitConversionRule<String>> m_rules;  ///< Key is a unit, it's assumed that all rules have the same base unit
+    String m_baseUnit;  ///< Base unit for this family
+    String m_family;    ///< Family name
 };
 
 #endif // QUNITCONVERSIONFAMILY_H

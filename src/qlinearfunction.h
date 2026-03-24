@@ -29,11 +29,11 @@ public:
 
     /**
      * @brief Reverses current linear function so X = k*Y + b
-     * @return an object of type QLinearFunction containing inversed function
+     * @return an object of type QLinearFunction containing inverted function
      * @details This function doesn't perform validity check so applying it to
      * invalid function will cause division by zero
      */
-    QLinearFunction inversed() const;
+    QLinearFunction inverted() const;
 
     /**
      * @brief Function value

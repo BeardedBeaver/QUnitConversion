@@ -1,9 +1,10 @@
 #ifndef QUNITCONVERTOR_H
 #define QUNITCONVERTOR_H
 
-#include <QMap>
-
+#include <map>
 #include <math.h>
+#include <stdexcept>
+#include <vector>
 
 #include "qlinearfunction.h"
 #include "qunitconversionfamily.h"
@@ -14,11 +15,15 @@
  * in a string form. It uses "base" unit for each "family" (length, speed etc)
  * and perform conversions inside a family through conversion to and from base unit.
  */
-template<typename String>
+template<class String>
 class QUnitConvertor
 {
-    friend class QUnitConvertorTests;
 public:
+    /**
+     * @brief Default constructor
+     */
+    QUnitConvertor() = default;
+
     /**
      * @brief Checks if unit conversion from in unit to out unit is possible
      * @param in unit to convert from
@@ -40,22 +45,15 @@ public:
     {
         if (in == out)
             return {1, 0};
-        String actualIn, actualOut;
-        if (m_aliases.contains(in))
-            actualIn = m_aliases.name(in);
-        else
-            actualIn = in;
-        if (m_aliases.contains(out))
-            actualOut = m_aliases.name(out);
-        else
-            actualOut = out;
-        auto inFamilyIt = m_familiesByUnit.find(actualIn);
-
-        String outFamily = m_familiesByUnit.value(actualOut);
-        if (inFamilyIt == m_familiesByUnit.end() || inFamilyIt.value() != outFamily)
+        String actualIn  = m_aliases.contains(in)  ? m_aliases.name(in)  : in;
+        String actualOut = m_aliases.contains(out) ? m_aliases.name(out) : out;
+        auto itIn  = m_familiesByUnit.find(actualIn);
+        auto itOut = m_familiesByUnit.find(actualOut);
+        if (itIn == m_familiesByUnit.end() || itOut == m_familiesByUnit.end())
             return {};
-
-        return m_families[inFamilyIt.value()].convert(actualIn, actualOut);
+        if (itIn->second != itOut->second)
+            return {};
+        return m_families.at(itIn->second).convert(actualIn, actualOut);
     }
 
     /**
@@ -78,32 +76,35 @@ public:
     /**
      * @brief Adds a conversion rule to convertor
      * @param rule rule to add
-     * @details This function doesn't convert an alas for a unit to an actual unit name, so make sure to
+     * @details This function doesn't convert an alias for a unit to an actual unit name, so make sure to
      * pass here an actual unit name
      * @throw std::invalid_argument if a passed rule has existing family with different base unit,
      * existing unit with different family or existing unit with a different family or base unit
      */
     void addConversionRule(const QUnitConversionRule<String> & rule)
     {
-        if (m_baseUnitsByFamilies.contains(rule.family()) && m_baseUnitsByFamilies[rule.family()] != rule.baseUnit())
+        auto itFamily = m_baseUnitsByFamilies.find(rule.family());
+        if (itFamily != m_baseUnitsByFamilies.end() && itFamily->second != rule.baseUnit())
             throw std::invalid_argument("Incorrect rule added: incorrect family base unit");
-        if (m_familiesByUnit.contains(rule.baseUnit()) && m_familiesByUnit[rule.baseUnit()] != rule.family())
+        auto itBaseUnit = m_familiesByUnit.find(rule.baseUnit());
+        if (itBaseUnit != m_familiesByUnit.end() && itBaseUnit->second != rule.family())
             throw std::invalid_argument("Incorrect rule added: incorrect base unit family");
-        if (m_familiesByUnit.contains(rule.unit()) && m_familiesByUnit[rule.unit()] != rule.family())
+        auto itUnit = m_familiesByUnit.find(rule.unit());
+        if (itUnit != m_familiesByUnit.end() && itUnit->second != rule.family())
             throw std::invalid_argument("Incorrect rule added: incorrect unit family");
-        if (!m_families.contains(rule.family()))
+        if (m_families.find(rule.family()) == m_families.end())
         {
             QUnitConversionFamily<String> family;
             family.addConversionRule(rule);
-            m_families.insert(rule.family(), family);
-            m_baseUnitsByFamilies.insert(rule.family(), rule.baseUnit());
-            m_familiesByUnit.insert(rule.baseUnit(), rule.family());
+            m_families.emplace(rule.family(), std::move(family));
+            m_baseUnitsByFamilies[rule.family()] = rule.baseUnit();
+            m_familiesByUnit[rule.baseUnit()]    = rule.family();
         }
         else
         {
             m_families[rule.family()].addConversionRule(rule);
         }
-        m_familiesByUnit.insert(rule.unit(), rule.family());
+        m_familiesByUnit[rule.unit()] = rule.family();
     }
 
     /**
@@ -118,15 +119,14 @@ public:
 
     /**
      * @brief Method provides access to a list of families of units in this convertor
-     * @return StringList containing a list of unit families
+     * @return vector containing a list of unit families
      */
     std::vector<String> families() const
     {
         std::vector<String> result;
         result.reserve(m_families.size());
-        for (auto it = m_families.begin(); it != m_families.end(); ++it)
-            result.push_back(it.key());
-
+        for (const auto & [name, _] : m_families)
+            result.push_back(name);
         return result;
     }
 
@@ -137,19 +137,18 @@ public:
      */
     String family(const String & unit) const
     {
-        String actualUnit;
-        if (m_aliases.contains(unit))
-            actualUnit = m_aliases.name(unit);
-        else
-            actualUnit = unit;
-        return m_familiesByUnit.value(actualUnit);
+        String actualUnit = m_aliases.contains(unit) ? m_aliases.name(unit) : unit;
+        auto it = m_familiesByUnit.find(actualUnit);
+        if (it == m_familiesByUnit.end())
+            return {};
+        return it->second;
     }
 
     /**
      * @brief Gets a list of units with a possible connection to/from a given unit
      * @param unit unit to get a list of conversions
-     * @return StringList with units with possible conversion to a given unit, including a given unit. If
-     * conversion to/from a given unit is unknown returns an empty list
+     * @return vector with units with possible conversion to a given unit, including a given unit.
+     * If conversion to/from a given unit is unknown returns an empty vector
      */
     std::vector<String> conversions(const String & unit) const
     {
@@ -158,24 +157,22 @@ public:
 
     /**
      * @brief Method provides access to a list of units in this convertor within a given
-     * family, effectively providing a list of unit with a possible conversion from
+     * family, effectively providing a list of units with a possible conversion from
      * any unit of this list to any other
      * @param family family to return unit list
-     * @return StringList containing a list of units known by this unit convertor
+     * @return vector containing a list of units known by this unit convertor within the family
      */
-    std::vector<String> units(const String &family) const
+    std::vector<String> units(const String & family) const
     {
         std::vector<String> result;
-        result.reserve(m_familiesByUnit.size());
-        for (auto it = m_familiesByUnit.begin(); it != m_familiesByUnit.end(); ++it)
-            if (it.value() == family)
-                result.push_back(it.key());
-
+        for (const auto & [unit, unitFamily] : m_familiesByUnit)
+            if (unitFamily == family)
+                result.push_back(unit);
         return result;
     }
 
     /**
-     * @brief adds aliases from the object QAliasDictionary
+     * @brief Sets aliases from a QAliasDictionary object
      */
     void setAliases(QAliasDictionary<String> aliases)
     {
@@ -183,13 +180,12 @@ public:
     }
 
     /**
-     * @brief adds one alias
+     * @brief Adds one alias
      */
     void addAlias(String name, String alias)
     {
-        m_aliases.addAlias(name, alias);
+        m_aliases.addAlias(std::move(name), std::move(alias));
     }
-
 
     /**
      * @brief Removes all alias rules
@@ -209,10 +205,23 @@ public:
         return m_aliases.name(alias);
     }
 
+    /**
+     * @brief Gets the base unit for a given family
+     * @param family family name
+     * @return base unit name or an empty string if the family is unknown
+     */
+    String baseUnit(const String & family) const
+    {
+        auto it = m_baseUnitsByFamilies.find(family);
+        if (it == m_baseUnitsByFamilies.end())
+            return {};
+        return it->second;
+    }
+
 protected:
-    QMap<String, String> m_familiesByUnit;   ///< Key is a unit, Value is a corresponding family. Base units are also put here
-    QMap<String, String> m_baseUnitsByFamilies;  ///< Key is a family name, Value is a corresponding base unit
-    QMap<String, QUnitConversionFamily<String>> m_families;   ///< Key is a family name, Value is a family
+    std::map<String, String> m_familiesByUnit;          ///< Key is a unit, Value is a corresponding family. Base units are also put here
+    std::map<String, String> m_baseUnitsByFamilies;     ///< Key is a family name, Value is a corresponding base unit
+    std::map<String, QUnitConversionFamily<String>> m_families;   ///< Key is a family name, Value is a family
     QAliasDictionary<String> m_aliases;
 };
 

@@ -1,4 +1,6 @@
 *.user*
 cmake-build*
+build/
 /doc/
-.idea
+.idea/
+.vscode/
